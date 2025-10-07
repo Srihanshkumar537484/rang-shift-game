@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Rang Shift</title>
+    <title>Rang Shift - Original with High Score</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             font-family: 'Poppins', sans-serif;
-            touch-action: none; /* Mobile par double tap zoom ko roke */
+            touch-action: none;
         }
         canvas {
-            background-color: #1a202c; /* Dark background */
+            background-color: #1a202c;
             display: block;
             margin: 0 auto;
             border-radius: 12px;
@@ -34,8 +34,11 @@
     <div class="w-full max-w-md text-center">
         <h1 class="text-4xl md:text-5xl font-bold text-cyan-400 mb-2">Rang Shift</h1>
         <p class="text-lg text-gray-400 mb-4">Sahi rang par kudo!</p>
-        <div class="bg-gray-800 p-2 rounded-lg text-2xl font-semibold mb-4 shadow-inner">
+        <div class="bg-gray-800 p-2 rounded-lg text-2xl font-semibold mb-2 shadow-inner">
             Score: <span id="score">0</span>
+        </div>
+        <div class="bg-gray-800 p-2 rounded-lg text-lg font-medium mb-4 shadow-inner text-yellow-400">
+            👤 High Score: <span id="highScoreDisplay">0</span>
         </div>
     </div>
 
@@ -46,8 +49,7 @@
         <button id="shiftButton" class="control-button w-1/2 bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 px-4 rounded-lg text-xl shadow-lg">Rang Badlo (Shift)</button>
     </div>
 
-    <!-- Game Over Modal -->
-    <div id="modal-container" class="fixed inset-0 items-center justify-center hidden">
+    <div id="modal-container" class="fixed inset-0 z-10 flex items-center justify-center hidden">
         <div class="bg-gray-800 rounded-lg shadow-2xl p-8 text-center w-11/12 max-w-sm">
             <h2 class="text-3xl font-bold mb-2 text-red-500">Game Over!</h2>
             <p class="text-xl mb-4">Aapka Final Score: <span id="finalScore">0</span></p>
@@ -60,9 +62,8 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        // Canvas ko responsive banana
         let canvasWidth = Math.min(window.innerWidth - 30, 450);
-        let canvasHeight = canvasWidth * 1.5; // Aspect ratio
+        let canvasHeight = canvasWidth * 1.5; 
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
 
@@ -73,6 +74,7 @@
         const restartButton = document.getElementById('restartButton');
         const jumpButton = document.getElementById('jumpButton');
         const shiftButton = document.getElementById('shiftButton');
+        const highScoreDisplay = document.getElementById('highScoreDisplay'); // High Score element
 
         // Game ke rang
         const colors = ['#34D399', '#60A5FA', '#F87171', '#FBBF24'];
@@ -94,15 +96,35 @@
         // Game variables
         let platforms = [];
         let score = 0;
+        let highScore = 0; // High Score variable
         let gameOver = false;
-        let gameSpeed = 2;
+        let gameSpeed = 2; // Fixed scroll speed
 
-        // Platform banana
+        // ------------------
+        // HIGH SCORE LOGIC
+        // ------------------
+
+        function loadHighScore() {
+            // Local Storage se High Score load karein
+            const storedHighScore = localStorage.getItem('rangShiftHighScore');
+            highScore = storedHighScore ? parseInt(storedHighScore) : 0;
+            highScoreDisplay.textContent = highScore;
+        }
+
+        function saveHighScore(currentScore) {
+            // Agar current score High Score se zyada hai to save karein
+            if (currentScore > highScore) {
+                highScore = currentScore;
+                localStorage.setItem('rangShiftHighScore', highScore);
+                highScoreDisplay.textContent = highScore;
+            }
+        }
+
+        // ------------------
+        // PLATFORM LOGIC (No Moving Platforms)
+        // ------------------
+
         function createPlatform(y, color) {
-            const minGap = 100;
-            const maxGap = 200;
-            const gap = Math.random() * (maxGap - minGap) + minGap;
-            
             const platformWidth = Math.random() * (canvas.width / 2 - 80) + 80;
             const x = Math.random() * (canvas.width - platformWidth);
 
@@ -126,12 +148,14 @@
 
         // Player ka rang badalna
         function shiftColor() {
+            if (gameOver) return;
             player.colorIndex = (player.colorIndex + 1) % colors.length;
             player.color = colors[player.colorIndex];
         }
 
-        // Jump karna
+        // Jump karna (Auto-Jump ke liye use hota hai)
         function jump() {
+            if (gameOver) return;
             if (!player.isJumping) {
                 player.velocityY = player.jumpStrength;
                 player.isJumping = true;
@@ -142,7 +166,7 @@
         function drawPlayer() {
             ctx.fillStyle = player.color;
             ctx.beginPath();
-            ctx.roundRect(player.x, player.y, player.width, player.height, [8]); // Rounded corners
+            ctx.roundRect(player.x, player.y, player.width, player.height, [8]); 
             ctx.fill();
         }
 
@@ -151,7 +175,7 @@
             platforms.forEach(platform => {
                 ctx.fillStyle = platform.color;
                 ctx.beginPath();
-                ctx.roundRect(platform.x, platform.y, platform.width, platform.height, [10]); // Rounded corners
+                ctx.roundRect(platform.x, platform.y, platform.width, platform.height, [10]); 
                 ctx.fill();
             });
         }
@@ -166,42 +190,53 @@
             // Gravity lagana
             player.velocityY += player.gravity;
             player.y += player.velocityY;
-            player.isJumping = player.velocityY < 0; // Agar upar ja raha hai to jumping state mein hai
+            player.isJumping = player.velocityY < 0; 
 
             // Collision detection
-            let onPlatform = false;
             platforms.forEach(platform => {
                 if (player.y + player.height > platform.y &&
                     player.y + player.height < platform.y + platform.height &&
                     player.x < platform.x + platform.width &&
                     player.x + player.width > platform.x &&
-                    player.velocityY > 0) { // Sirf neeche aate hue collide kare
+                    player.velocityY > 0) { 
                     
                     if (player.color === platform.color) {
                         player.y = platform.y - player.height;
                         player.velocityY = 0;
-                        onPlatform = true;
-                        if(player.isJumping) player.isJumping = false;
-                        jump(); // Platform par aate hi auto jump
+                        player.isJumping = false;
+                        
+                        // *** AUTO-JUMP LOGIC ***
+                        jump(); 
+                        
+                    } else {
+                         // Galat rang par Game Over
+                         endGame();
+                         return;
                     }
                 }
             });
 
+            if (gameOver) return;
+            
             // Player agar screen ke upar hai to platforms ko neeche move karna
             if (player.y < canvas.height / 2) {
                 let scrollSpeed = Math.max(gameSpeed, -player.velocityY * 0.5);
-                player.y += scrollSpeed; // Player ko thoda neeche rakhe
+                player.y += scrollSpeed; 
                 platforms.forEach(platform => {
                     platform.y += scrollSpeed;
                 });
-                score += Math.floor(scrollSpeed);
+                score += Math.floor(scrollSpeed); 
                 scoreElement.textContent = score;
             }
 
+            // Player Bounds Check
+            player.x = Math.max(0, Math.min(player.x, canvas.width - player.width));
+
             // Purane platforms hatana aur naye banana
             platforms = platforms.filter(platform => platform.y < canvas.height);
-            if (platforms[platforms.length - 1].y > 10) {
-                createPlatform(-100);
+            if (platforms.length === 0 || platforms[platforms.length - 1].y > 10) {
+                let lastY = platforms.length === 0 ? canvas.height - 50 : platforms[platforms.length - 1].y;
+                createPlatform(lastY - 120 - Math.random() * 50); 
             }
             
             // Game Over condition
@@ -226,6 +261,8 @@
             player.x = canvas.width / 2 - 20;
             player.y = canvas.height - 100;
             player.velocityY = 0;
+            player.isJumping = false;
+            loadHighScore(); // High Score load karein
             initializePlatforms();
             modalContainer.style.display = 'none';
             update();
@@ -234,19 +271,19 @@
         // Game khatm karna
         function endGame() {
             gameOver = true;
+            saveHighScore(score); // High Score save karein
             finalScoreElement.textContent = score;
             modalContainer.style.display = 'flex';
         }
 
         // Event listeners (Keyboard aur Touch)
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') jump();
-            if (e.code === 'ShiftLeft' || e.code === 'KeyC') shiftColor();
+            if (e.code === 'Space') { e.preventDefault(); jump(); }
+            if (e.code === 'ShiftLeft' || e.code === 'KeyC') { e.preventDefault(); shiftColor(); }
         });
 
         jumpButton.addEventListener('click', jump);
         shiftButton.addEventListener('click', shiftColor);
-        // Touch events ke liye
         jumpButton.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
         shiftButton.addEventListener('touchstart', (e) => { e.preventDefault(); shiftColor(); });
 
@@ -258,7 +295,7 @@
             canvasHeight = canvasWidth * 1.5;
             canvas.width = canvasWidth;
             canvas.height = canvasHeight;
-            startGame(); // Game ko restart kare taki sab sahi se set ho jaye
+            startGame(); 
         });
 
         // Game ko pehli baar shuru karna
